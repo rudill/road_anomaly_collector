@@ -1,35 +1,42 @@
-name: "Build iOS App"
+name: iOS-ipa-build
 
 on:
-  push:
-    branches: [ main, master ] # Runs every time you push to these branches
-  workflow_dispatch: # Allows you to run it manually from GitHub's UI
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: Build iOS IPA
-    runs-on: macos-latest # This is the magic: using a cloud Mac
-
+  build-ios:
+    name: 🎉 iOS Build
+    runs-on: macos-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '3.38.7' # Or your specific version
+          architecture: x64
+      - run: flutter pub get
+      
 
-      - name: Install Dependencies
-        run: flutter pub get
+      - run: pod repo update
+        working-directory: ios
 
-      - name: Build IPA
-        run: flutter build ios --release --no-codesign
-        # Note: "--no-codesign" is used because we don't have a $99 Apple Dev account yet.
-        # This will create a build for testing, but not for the App Store.
+      - run: flutter build ios --release --no-codesign
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      - run: mkdir Payload
+        working-directory: build/ios/iphoneos
+
+      - run: mv Runner.app/ Payload
+        working-directory: build/ios/iphoneos
+
+      - name: Zip output
+        run: zip -qq -r -9 FlutterIpaExport.ipa Payload
+        working-directory: build/ios/iphoneos
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
         with:
-          name: ios-build
-          path: build/ios/iphoneos/*.app # This saves the build for you to download
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build/ios/iphoneos/FlutterIpaExport.ipa
+          tag: v1.0
+          overwrite: true
+          body: "This is first release"
