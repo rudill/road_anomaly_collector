@@ -1,0 +1,35 @@
+name: "Build iOS App"
+
+on:
+  push:
+    branches: [ main, master ] # Runs every time you push to these branches
+  workflow_dispatch: # Allows you to run it manually from GitHub's UI
+
+jobs:
+  build:
+    name: Build iOS IPA
+    runs-on: macos-latest # This is the magic: using a cloud Mac
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.x.x' # Or your specific version
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build IPA
+        run: flutter build ios --release --no-codesign
+        # Note: "--no-codesign" is used because we don't have a $99 Apple Dev account yet.
+        # This will create a build for testing, but not for the App Store.
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: build/ios/iphoneos/*.app # This saves the build for you to download
