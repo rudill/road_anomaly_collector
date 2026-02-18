@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.example.road_anomaly_collector"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
