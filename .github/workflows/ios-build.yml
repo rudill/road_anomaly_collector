@@ -1,14 +1,16 @@
 name: iOS-ipa-build
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main, master ] # Runs every time you push to these branches
+  workflow_dispatch: # Allows you to run it manually from GitHub's UI
 
 jobs:
   build-ios:
     name: 🎉 iOS Build
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: subosito/flutter-action@v2
         with:
