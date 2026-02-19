@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
         brightness: Brightness.light,
         primaryColor: CupertinoColors.systemBlue,
       ),
-      home: RoadTrackApp(),
+      home: const HomeScreen(),
     );
   }
 }
