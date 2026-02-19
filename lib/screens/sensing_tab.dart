@@ -69,7 +69,7 @@ class _SensingTabState extends State<SensingTab> {
           ),
           // Floating Action Button
           Positioned(
-            bottom: 30,
+            bottom: 100,
             right: 20,
             child: GestureDetector(
               onTap: () async {
