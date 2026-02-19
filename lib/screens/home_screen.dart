@@ -482,48 +482,74 @@ class WaveformPainter extends StatefulWidget {
   State<WaveformPainter> createState() => _WaveformPainterState();
 }
 
+// 1. Create a simple data structure to hold your ML rows
+class SensorDataPoint {
+  final DateTime timestamp;
+  final double x;
+  final double y;
+  final double z;
+  final String label;
+
+  SensorDataPoint(this.timestamp, this.x, this.y, this.z, this.label);
+
+  // Helper method to easily convert this to a CSV string later
+  String toCsvRow() => '${timestamp.toIso8601String()},$x,$y,$z,$label\n';
+}
+
 class _WaveformPainterState extends State<WaveformPainter>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   List<double> points = List.generate(50, (_) => 50.0);
   StreamSubscription<UserAccelerometerEvent>? _streamSubscription;
-  double _currentZ = 0;
+
+  // --- New Variables for ML Collection ---
+  List<SensorDataPoint> mlDataBuffer = [];
+  String currentLabel =
+      "Normal"; // This will change when you press "Pothole" or "Speed Bump"
 
   @override
   void initState() {
     super.initState();
 
-    // Subscribe to sensor stream
-    _streamSubscription = userAccelerometerEventStream().listen((event) {
-      if (mounted) {
-        // Simple low-pass filter or direct assignment?
-        // Direct assignment for responsiveness, maybe smoothing later if needed.
-        // We'll scale it. Normal gravity is mostly removed by UserAccelerometer.
-        // Z can range roughly -10 to 10 on heavy shakes.
-        _currentZ = event.z;
-      }
-    });
+    // 1. DATA LOGGING: This runs at the sensor's native hardware speed
+    _streamSubscription =
+        userAccelerometerEventStream(
+          // Optional: If using the latest sensors_plus package, force a high sample rate
+          // samplingPeriod: SensorInterval.gameInterval,
+        ).listen((event) {
+          if (mounted) {
+            // Log X, Y, Z immediately with a timestamp for your dataset
+            mlDataBuffer.add(
+              SensorDataPoint(
+                DateTime.now(),
+                event.x,
+                event.y,
+                event.z,
+                currentLabel,
+              ),
+            );
 
+            // Calculate the UI visualizer (we only plot Z for the UI)
+            double plottedValue = 50 - (event.z * 5);
+            plottedValue = plottedValue.clamp(0.0, 100.0);
+
+            // Add to UI list and keep it at 50 items
+            points.add(plottedValue);
+            points.removeAt(0);
+          }
+        });
+
+    // 2. UI REFRESH: This runs independently just to redraw the screen
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
     )..repeat();
 
     _controller.addListener(() {
+      // By calling setState here, we just tell the screen to draw
+      // whatever the current state of the 'points' list is, without dropping sensor frames.
       if (widget.isActive && mounted) {
-        setState(() {
-          points.removeAt(0);
-          // Scale Z to fit in 0-100 range centered at 50
-          // Assuming typical range of -5 to +5 m/s^2 for normal bumps
-          // 50 is center. +1 m/s^2 -> +5 units?
-
-          double plottedValue = 50 - (_currentZ * 5);
-
-          // Clamp to keep inside loosely
-          plottedValue = plottedValue.clamp(0.0, 100.0);
-
-          points.add(plottedValue);
-        });
+        setState(() {});
       }
     });
   }
