@@ -14,6 +14,7 @@ class _MapTabState extends State<MapTab> {
   final MapController _mapController = MapController();
   LatLng? _currentPosition;
   bool _isLoading = true;
+  bool _isMapReady = false; // Added flag to track map status
   String _locationError = '';
 
   @override
@@ -73,7 +74,11 @@ class _MapTabState extends State<MapTab> {
           _currentPosition = LatLng(position.latitude, position.longitude);
           _isLoading = false;
         });
-        _mapController.move(_currentPosition!, 15);
+        // Only move the map if it is ready.
+        // If not ready (first load), initialCenter handles the position.
+        if (_isMapReady) {
+          _mapController.move(_currentPosition!, 15);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -108,7 +113,10 @@ class _MapTabState extends State<MapTab> {
                     ),
                     onPressed: () {
                       if (_currentPosition != null) {
-                        _mapController.move(_currentPosition!, 15);
+                        // User explicitly requested move, controller should be ready if map is visible
+                        if (_isMapReady) {
+                          _mapController.move(_currentPosition!, 15);
+                        }
                       } else {
                         _determinePosition();
                       }
@@ -149,7 +157,13 @@ class _MapTabState extends State<MapTab> {
 
     return FlutterMap(
       mapController: _mapController,
-      options: MapOptions(initialCenter: center, initialZoom: 15.0),
+      options: MapOptions(
+        initialCenter: center,
+        initialZoom: 15.0,
+        onMapReady: () {
+          _isMapReady = true;
+        },
+      ),
       children: [
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -203,6 +217,7 @@ class _MapTabState extends State<MapTab> {
               fontSize: 14,
               fontWeight: FontWeight.bold,
               fontFamily: 'monospace',
+              color: CupertinoColors.white,
             ),
           ),
         ],

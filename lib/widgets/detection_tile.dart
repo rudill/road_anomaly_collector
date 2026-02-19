@@ -47,7 +47,10 @@ class DetectionTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: CupertinoColors.white,
+                  ),
                 ),
                 Text(
                   "$time • Conf: $conf",

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
-import 'package:sensors_plus/sensors_plus.dart';
+
 import 'package:road_anomaly_collector/services/sensor_service.dart';
 
 class WaveformPainter extends StatefulWidget {
