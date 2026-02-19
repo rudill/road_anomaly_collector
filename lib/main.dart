@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:road_anomaly_collector/screens/home_screen.dart';
 import 'package:road_anomaly_collector/screens/sensor_data_screen.dart';
 
 void main() {
@@ -16,7 +17,7 @@ class MyApp extends StatelessWidget {
         brightness: Brightness.light,
         primaryColor: CupertinoColors.systemBlue,
       ),
-      home: SensorDataScreen(),
+      home: RoadTrackApp(),
     );
   }
 }
