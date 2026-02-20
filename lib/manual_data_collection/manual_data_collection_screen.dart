@@ -31,26 +31,34 @@ class _ManualDataCollectionScreenState
   }
 
   void _startListening() {
-    _subscription = userAccelerometerEventStream().listen((event) {
-      if (mounted) {
-        setState(() {
-          _x = event.x;
-          _y = event.y;
-          _z = event.z;
+    // Ensure the service is active and listening to hardware
+    SensorService().ensureListening();
 
-          _maxX = max(_maxX, event.x.abs());
-          _maxY = max(_maxY, event.y.abs());
-          _maxZ = max(_maxZ, event.z.abs());
+    _subscription = SensorService().sensorStream.listen(
+      (event) {
+        if (mounted) {
+          setState(() {
+            _x = event.x;
+            _y = event.y;
+            _z = event.z;
 
-          _xHistory.removeAt(0);
-          _xHistory.add(event.x);
-          _yHistory.removeAt(0);
-          _yHistory.add(event.y);
-          _zHistory.removeAt(0);
-          _zHistory.add(event.z);
-        });
-      }
-    });
+            _maxX = max(_maxX, event.x.abs());
+            _maxY = max(_maxY, event.y.abs());
+            _maxZ = max(_maxZ, event.z.abs());
+
+            _xHistory.removeAt(0);
+            _xHistory.add(event.x);
+            _yHistory.removeAt(0);
+            _yHistory.add(event.y);
+            _zHistory.removeAt(0);
+            _zHistory.add(event.z);
+          });
+        }
+      },
+      onError: (error) {
+        debugPrint("Sensor Error in Diagnostics: $error");
+      },
+    );
   }
 
   @override
