@@ -11,11 +11,12 @@ class SensorService {
 
   final List<SensorDataPoint> _dataBuffer = [];
   StreamSubscription<UserAccelerometerEvent>? _subscription;
-  final _streamController =
-      StreamController<UserAccelerometerEvent>.broadcast();
+  final _streamController = StreamController<UserAccelerometerEvent>.broadcast();
 
   bool _isRecording = false;
   bool get isRecording => _isRecording;
+
+  String _currentLabel = "Normal"; // Variable to hold the manual tag
 
   Stream<UserAccelerometerEvent> get sensorStream => _streamController.stream;
 
@@ -23,11 +24,14 @@ class SensorService {
     _startSensorListener();
   }
 
+  // Allow UI to update the current road surface label
+  void setLabel(String label) {
+    _currentLabel = label;
+  }
+
   Future<void> startRecording() async {
     _dataBuffer.clear();
     _isRecording = true;
-
-    // Ensure we are listening to sensors
     _startSensorListener();
   }
 
@@ -35,9 +39,8 @@ class SensorService {
     if (!_isRecording) return null;
 
     _isRecording = false;
-    // We keep the listener active for the UI graph, but stop buffering
+    _currentLabel = "Normal"; // Reset label after collection
 
-    // Save buffer to file
     if (_dataBuffer.isEmpty) return null;
 
     try {
@@ -49,10 +52,7 @@ class SensorService {
           .first;
       final file = File('${directory.path}/sensor_data_$timestamp.csv');
 
-      // Add header
       String csvContent = "Timestamp,X,Y,Z,Label\n";
-
-      // Add data
       final bufferStrings = _dataBuffer.map((e) => e.toCsvRow()).join();
       csvContent += bufferStrings;
 
@@ -69,10 +69,8 @@ class SensorService {
     if (_subscription != null) return;
 
     _subscription = userAccelerometerEventStream().listen((event) {
-      // Always add to stream for UI
       _streamController.add(event);
 
-      // Only buffer if recording
       if (_isRecording) {
         _dataBuffer.add(
           SensorDataPoint(
@@ -80,7 +78,7 @@ class SensorService {
             event.x,
             event.y,
             event.z,
-            "Normal", // TODO: Make this dynamic if needed
+            _currentLabel, // Dynamic label injected here
           ),
         );
       }

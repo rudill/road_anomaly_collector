@@ -18,20 +18,23 @@ class _ManualDataCollectionScreenState
   StreamSubscription<UserAccelerometerEvent>? _subscription;
 
   double _x = 0, _y = 0, _z = 0;
-  List<double> _xHistory = List.filled(50, 0);
-  List<double> _yHistory = List.filled(50, 0);
-  List<double> _zHistory = List.filled(50, 0);
+  
+  // FIX: Use List.generate to create growable lists instead of List.filled
+  final List<double> _xHistory = List.generate(50, (_) => 0.0);
+  final List<double> _yHistory = List.generate(50, (_) => 0.0);
+  final List<double> _zHistory = List.generate(50, (_) => 0.0);
 
   double _maxX = 0, _maxY = 0, _maxZ = 0;
+  String _currentLabel = "Normal"; // Default label for manual collection
 
   @override
   void initState() {
     super.initState();
+    SensorService().setLabel(_currentLabel); // Initialize service label
     _startListening();
   }
 
   void _startListening() {
-    // Ensure the service is active and listening to hardware
     SensorService().ensureListening();
 
     _subscription = SensorService().sensorStream.listen(
@@ -102,6 +105,8 @@ class _ManualDataCollectionScreenState
                   const SizedBox(height: 24),
                   _buildRealTimeChart(),
                   const SizedBox(height: 24),
+                  _buildLabelSelector(), // Added label selector
+                  const SizedBox(height: 24),
                   _buildSessionInfo(),
                 ],
               ),
@@ -113,6 +118,61 @@ class _ManualDataCollectionScreenState
     );
   }
 
+  Widget _buildLabelSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "ANOMALY TAGGING",
+          style: TextStyle(
+            color: CupertinoColors.systemGrey,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: CupertinoSlidingSegmentedControl<String>(
+            backgroundColor: CupertinoColors.white.withOpacity(0.05),
+            thumbColor: CupertinoColors.activeBlue,
+            groupValue: _currentLabel,
+            children: {
+              "Normal": _buildSegmentText("Normal"),
+              "Pothole": _buildSegmentText("Pothole"),
+              "Bump": _buildSegmentText("Bump"),
+            },
+            onValueChanged: (String? value) {
+              if (value != null) {
+                setState(() {
+                  _currentLabel = value;
+                });
+                SensorService().setLabel(value); // Send new label to service
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSegmentText(String text) {
+    final isSelected = _currentLabel == text;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: isSelected ? CupertinoColors.white : CupertinoColors.systemGrey,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  // ... [Keep _buildLiveIndicator, _buildDiagnosticsGrid, _buildRealTimeChart, _buildSessionInfo exactly as they were] ...
+  
   Widget _buildLiveIndicator() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -326,6 +386,8 @@ class _ManualDataCollectionScreenState
   }
 }
 
+// ... [Keep _PulseIndicator, _InfoRow, and _MultiAxisPainter exactly as they were] ...
+
 class _PulseIndicator extends StatefulWidget {
   const _PulseIndicator();
 
@@ -449,7 +511,7 @@ class _MultiAxisPainter extends CustomPainter {
     final path = Path();
     final stepX = size.width / (history.length - 1);
     final centerY = size.height / 2;
-    final scaleY = size.height / 20; // Scale 10g to half height
+    final scaleY = size.height / 20;
 
     path.moveTo(0, centerY - (history[0] * scaleY));
 
