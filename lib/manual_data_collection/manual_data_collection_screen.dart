@@ -15,10 +15,10 @@ class ManualDataCollectionScreen extends StatefulWidget {
 
 class _ManualDataCollectionScreenState
     extends State<ManualDataCollectionScreen> {
-  StreamSubscription<UserAccelerometerEvent>? _subscription;
+  StreamSubscription<AccelerometerEvent>? _subscription;
 
   double _x = 0, _y = 0, _z = 0;
-  
+
   // FIX: Use List.generate to create growable lists instead of List.filled
   final List<double> _xHistory = List.generate(50, (_) => 0.0);
   final List<double> _yHistory = List.generate(50, (_) => 0.0);
@@ -164,7 +164,9 @@ class _ManualDataCollectionScreenState
       child: Text(
         text,
         style: TextStyle(
-          color: isSelected ? CupertinoColors.white : CupertinoColors.systemGrey,
+          color: isSelected
+              ? CupertinoColors.white
+              : CupertinoColors.systemGrey,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
@@ -172,7 +174,7 @@ class _ManualDataCollectionScreenState
   }
 
   // ... [Keep _buildLiveIndicator, _buildDiagnosticsGrid, _buildRealTimeChart, _buildSessionInfo exactly as they were] ...
-  
+
   Widget _buildLiveIndicator() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

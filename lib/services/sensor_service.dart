@@ -10,15 +10,15 @@ class SensorService {
   SensorService._internal();
 
   final List<SensorDataPoint> _dataBuffer = [];
-  StreamSubscription<UserAccelerometerEvent>? _subscription;
-  final _streamController = StreamController<UserAccelerometerEvent>.broadcast();
+  StreamSubscription<AccelerometerEvent>? _subscription;
+  final _streamController = StreamController<AccelerometerEvent>.broadcast();
 
   bool _isRecording = false;
   bool get isRecording => _isRecording;
 
   String _currentLabel = "Normal"; // Variable to hold the manual tag
 
-  Stream<UserAccelerometerEvent> get sensorStream => _streamController.stream;
+  Stream<AccelerometerEvent> get sensorStream => _streamController.stream;
 
   void ensureListening() {
     _startSensorListener();
@@ -68,21 +68,24 @@ class SensorService {
   void _startSensorListener() {
     if (_subscription != null) return;
 
-    _subscription = userAccelerometerEventStream().listen((event) {
-      _streamController.add(event);
+    _subscription =
+        accelerometerEventStream(
+          samplingPeriod: const Duration(milliseconds: 20),
+        ).listen((event) {
+          _streamController.add(event);
 
-      if (_isRecording) {
-        _dataBuffer.add(
-          SensorDataPoint(
-            DateTime.now(),
-            event.x,
-            event.y,
-            event.z,
-            _currentLabel, // Dynamic label injected here
-          ),
-        );
-      }
-    });
+          if (_isRecording) {
+            _dataBuffer.add(
+              SensorDataPoint(
+                DateTime.now(),
+                event.x,
+                event.y,
+                event.z,
+                _currentLabel, // Dynamic label injected here
+              ),
+            );
+          }
+        });
   }
 
   void dispose() {
