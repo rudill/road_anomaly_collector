@@ -1,6 +1,9 @@
 // ... (imports remain the same)
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:road_anomaly_collector/services/sensor_service.dart';
+import 'package:road_anomaly_collector/services/tflite_service.dart';
+import 'package:road_anomaly_collector/models/inference_result.dart';
 import 'package:road_anomaly_collector/widgets/detection_tile.dart';
 import 'package:road_anomaly_collector/widgets/stat_card.dart';
 import 'package:road_anomaly_collector/widgets/waveform_painter.dart';
@@ -22,30 +25,51 @@ class SensingTab extends StatefulWidget {
 }
 
 class _SensingTabState extends State<SensingTab> {
-  // We need to manage local state for the button or rely on parent.
-  // The prompt implies I should refactor to use SensorService.
-  // However, the HomeScreen (parent) currently manages 'isRecording' state and passes it down.
-  // I should probably lift that state management to SensorService entirely or update the parent.
-  // For least friction, let's update this widget to call Service,
-  // and arguably the parent should rebuild or we convert this to check service state.
+  StreamSubscription<InferenceResult>? _inferenceSubscription;
 
-  // Actually, HomeScreen passes `onToggle`. If I change `SensingTab` freely,
-  // I should probably ignore the props and use Service state,
-  // BUT HomeScreen might display other things.
-  // efficient approach: Update HomeScreen to call Service, OR make SensingTab smart.
-  // Let's make SensingTab smart and simple.
+  /// Live inference state
+  String _currentLabel = 'Normal';
+  double _currentConfidence = 0.0;
+
+  /// Tracked detections
+  int _anomalyCount = 0;
+  final List<InferenceResult> _recentDetections = [];
+  static const int _maxRecentDetections = 10;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribeToInference();
+  }
+
+  void _subscribeToInference() {
+    _inferenceSubscription = TFLiteService().inferenceStream.listen((result) {
+      if (mounted) {
+        setState(() {
+          _currentLabel = result.label;
+          _currentConfidence = result.confidence;
+
+          // Track bump detections that exceed confidence threshold
+          if (result.label == 'Bump' && result.isAboveThreshold) {
+            _anomalyCount++;
+            _recentDetections.insert(0, result);
+            if (_recentDetections.length > _maxRecentDetections) {
+              _recentDetections.removeLast();
+            }
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _inferenceSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // We will listen to the service state if we add a stream for it, or just use setState here
-    // wrapping the service calls.
-    // Since SensorService is a singleton, let's just use it directly for logic
-    // and use a local setState to reflect the change if we want to decouple from HomeScreen.
-    // But HomeScreen passes parameters...
-
-    // Let's assume for now we keep the props for display but hook the callback.
-    // Wait, the task said "Refactor lib/screens/sensing_tab.dart to use SensorService".
-
     return CupertinoPageScaffold(
       backgroundColor: const Color(0xFF0A0A0B),
       child: Stack(
@@ -56,6 +80,8 @@ class _SensingTabState extends State<SensingTab> {
               children: [
                 const SizedBox(height: 20),
                 _buildHeader(),
+                const SizedBox(height: 24),
+                _buildInferenceIndicator(),
                 const SizedBox(height: 24),
                 // Pass true/false to painter based on service or prop
                 _buildLiveGraph(),
@@ -145,24 +171,34 @@ class _SensingTabState extends State<SensingTab> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: CupertinoColors.activeGreen.withOpacity(0.1),
+            color: (TFLiteService().isInitialized
+                    ? CupertinoColors.activeGreen
+                    : CupertinoColors.systemYellow)
+                .withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: CupertinoColors.activeGreen.withOpacity(0.3),
+              color: (TFLiteService().isInitialized
+                      ? CupertinoColors.activeGreen
+                      : CupertinoColors.systemYellow)
+                  .withOpacity(0.3),
             ),
           ),
-          child: const Row(
+          child: Row(
             children: [
               Icon(
                 CupertinoIcons.circle_fill,
                 size: 8,
-                color: CupertinoColors.activeGreen,
+                color: TFLiteService().isInitialized
+                    ? CupertinoColors.activeGreen
+                    : CupertinoColors.systemYellow,
               ),
-              SizedBox(width: 6),
+              const SizedBox(width: 6),
               Text(
-                "READY",
+                TFLiteService().isInitialized ? "MODEL READY" : "NO MODEL",
                 style: TextStyle(
-                  color: CupertinoColors.activeGreen,
+                  color: TFLiteService().isInitialized
+                      ? CupertinoColors.activeGreen
+                      : CupertinoColors.systemYellow,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
@@ -171,6 +207,77 @@ class _SensingTabState extends State<SensingTab> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Live inference result indicator
+  Widget _buildInferenceIndicator() {
+    final isBump = _currentLabel == 'Bump' && _currentConfidence >= 0.6;
+    final indicatorColor = isBump
+        ? CupertinoColors.systemRed
+        : CupertinoColors.activeGreen;
+    final confidencePercent = (_currentConfidence * 100).toStringAsFixed(1);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: indicatorColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: indicatorColor.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: indicatorColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              isBump
+                  ? CupertinoIcons.exclamationmark_triangle_fill
+                  : CupertinoIcons.checkmark_shield_fill,
+              color: indicatorColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _currentLabel.toUpperCase(),
+                  style: TextStyle(
+                    color: indicatorColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  "Confidence: $confidencePercent%",
+                  style: const TextStyle(
+                    color: CupertinoColors.systemGrey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            "LIVE",
+            style: TextStyle(
+              color: indicatorColor,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -205,7 +312,7 @@ class _SensingTabState extends State<SensingTab> {
                 ],
               ),
               Text(
-                "100Hz",
+                "50Hz",
                 style: TextStyle(
                   color: CupertinoColors.systemGrey,
                   fontSize: 12,
@@ -232,31 +339,31 @@ class _SensingTabState extends State<SensingTab> {
       mainAxisSpacing: 16,
       crossAxisSpacing: 16,
       childAspectRatio: 1.5,
-      children: const [
+      children: [
         StatCard(
           label: "DETECTED",
-          value: "14",
+          value: "$_anomalyCount",
           unit: "Anomalies",
           icon: CupertinoIcons.exclamationmark_triangle,
           color: CupertinoColors.systemRed,
         ),
-        StatCard(
+        const StatCard(
           label: "IRI INDEX",
-          value: "2.4",
+          value: "—",
           unit: "m/km",
           icon: CupertinoIcons.graph_square,
           color: CupertinoColors.systemYellow,
         ),
-        StatCard(
+        const StatCard(
           label: "SPEED",
-          value: "45",
+          value: "—",
           unit: "km/h",
           icon: CupertinoIcons.speedometer,
           color: CupertinoColors.activeBlue,
         ),
         StatCard(
-          label: "ACCURACY",
-          value: "94",
+          label: "CONFIDENCE",
+          value: (_currentConfidence * 100).toStringAsFixed(0),
           unit: "%",
           icon: CupertinoIcons.layers_alt,
           color: CupertinoColors.systemPurple,
@@ -279,18 +386,39 @@ class _SensingTabState extends State<SensingTab> {
           ),
         ),
         const SizedBox(height: 12),
-        const DetectionTile(
-          title: "Pothole",
-          conf: "98%",
-          time: "2m ago",
-          severity: "High",
-        ),
-        const DetectionTile(
-          title: "Surface Crack",
-          conf: "82%",
-          time: "5m ago",
-          severity: "Low",
-        ),
+        if (_recentDetections.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: CupertinoColors.white.withOpacity(0.03),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: CupertinoColors.white.withOpacity(0.06),
+              ),
+            ),
+            child: const Center(
+              child: Text(
+                "No anomalies detected yet",
+                style: TextStyle(
+                  color: CupertinoColors.systemGrey,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          )
+        else
+          ..._recentDetections.map((detection) {
+            final ago = DateTime.now().difference(detection.timestamp);
+            final timeAgo = ago.inMinutes < 1
+                ? '${ago.inSeconds}s ago'
+                : '${ago.inMinutes}m ago';
+            return DetectionTile(
+              title: detection.label,
+              conf: '${(detection.confidence * 100).toStringAsFixed(0)}%',
+              time: timeAgo,
+              severity: detection.confidence >= 0.8 ? "High" : "Medium",
+            );
+          }),
       ],
     );
   }
