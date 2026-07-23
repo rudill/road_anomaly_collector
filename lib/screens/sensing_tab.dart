@@ -171,16 +171,18 @@ class _SensingTabState extends State<SensingTab> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: (TFLiteService().isInitialized
-                    ? CupertinoColors.activeGreen
-                    : CupertinoColors.systemYellow)
-                .withOpacity(0.1),
+            color:
+                (TFLiteService().isInitialized
+                        ? CupertinoColors.activeGreen
+                        : CupertinoColors.systemYellow)
+                    .withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: (TFLiteService().isInitialized
-                      ? CupertinoColors.activeGreen
-                      : CupertinoColors.systemYellow)
-                  .withOpacity(0.3),
+              color:
+                  (TFLiteService().isInitialized
+                          ? CupertinoColors.activeGreen
+                          : CupertinoColors.systemYellow)
+                      .withOpacity(0.3),
             ),
           ),
           child: Row(
