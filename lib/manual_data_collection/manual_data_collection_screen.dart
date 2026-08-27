@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/cupertino.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 import 'package:road_anomaly_collector/services/sensor_service.dart';
 import 'package:road_anomaly_collector/manual_data_collection/widgets/diagnostic_card.dart';
 
@@ -15,9 +14,10 @@ class ManualDataCollectionScreen extends StatefulWidget {
 
 class _ManualDataCollectionScreenState
     extends State<ManualDataCollectionScreen> {
-  StreamSubscription<AccelerometerEvent>? _subscription;
+  StreamSubscription<CombinedSensorReading>? _subscription;
 
   double _x = 0, _y = 0, _z = 0;
+  double _gx = 0, _gy = 0, _gz = 0;
 
   // FIX: Use List.generate to create growable lists instead of List.filled
   final List<double> _xHistory = List.generate(50, (_) => 0.0);
@@ -41,20 +41,23 @@ class _ManualDataCollectionScreenState
       (event) {
         if (mounted) {
           setState(() {
-            _x = event.x;
-            _y = event.y;
-            _z = event.z;
+            _x = event.accelX;
+            _y = event.accelY;
+            _z = event.accelZ;
+            _gx = event.gyroX;
+            _gy = event.gyroY;
+            _gz = event.gyroZ;
 
-            _maxX = max(_maxX, event.x.abs());
-            _maxY = max(_maxY, event.y.abs());
-            _maxZ = max(_maxZ, event.z.abs());
+            _maxX = max(_maxX, event.accelX.abs());
+            _maxY = max(_maxY, event.accelY.abs());
+            _maxZ = max(_maxZ, event.accelZ.abs());
 
             _xHistory.removeAt(0);
-            _xHistory.add(event.x);
+            _xHistory.add(event.accelX);
             _yHistory.removeAt(0);
-            _yHistory.add(event.y);
+            _yHistory.add(event.accelY);
             _zHistory.removeAt(0);
-            _zHistory.add(event.z);
+            _zHistory.add(event.accelZ);
           });
         }
       },
