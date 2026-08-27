@@ -1,11 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:road_anomaly_collector/screens/home_screen.dart';
-import 'package:road_anomaly_collector/screens/sensor_data_screen.dart';
-import 'package:road_anomaly_collector/services/tflite_service.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await TFLiteService().initialize();
   runApp(const MyApp());
 }
 

@@ -34,15 +34,14 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  permission_handler: ^12.0.1
-  geolocator: ^14.0.2
-  sensors_plus: ^4.0.0
+  permission_handler: ^13.0.1
+  geolocator: ^14.0.3
+  sensors_plus: ^7.1.0
   path_provider: ^2.1.5
-  csv: ^7.1.0
+  csv: ^8.0.0
   flutter_map: ^8.2.2
-  latlong2: ^0.9.1
-  share_plus: ^12.0.1
-  tflite_flutter: ^0.12.1
+  latlong2: ^0.10.1
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:
@@ -65,10 +64,6 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
-  assets:
-    - assets/models/trained.tflite
-    - assets/models/model-parameters/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

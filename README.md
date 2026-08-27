@@ -1,19 +1,19 @@
 # Road Anomaly Collector
 
-A Flutter-based mobile application for detecting and collecting road anomaly data using device sensors and machine learning.
+A Flutter-based mobile application for detecting and collecting road anomaly data using device sensors.
 
 ## Overview
 
-Road Anomaly Collector is a cross-platform mobile application that leverages smartphone sensors (accelerometer, gyroscope, and GPS) combined with a TensorFlow Lite machine learning model to detect road surface anomalies such as potholes, bumps, and rough patches. The app collects sensor data, performs real-time inference, and allows users to save and share collected data.
+Road Anomaly Collector is a cross-platform mobile application that leverages smartphone sensors (accelerometer, gyroscope, and GPS) to collect and record road surface anomalies such as potholes, bumps, and rough patches. The app collects high-frequency sensor data, provides real-time waveform visualization, and allows users to tag, save, and share collected CSV datasets.
 
 ## Features
 
-- **Real-time Sensor Monitoring**: View live data from accelerometer, gyroscope, and other device sensors
-- **ML-powered Anomaly Detection**: Uses a trained TensorFlow Lite model to classify road conditions
-- **GPS Tracking**: Records location data for each detected anomaly
-- **Data Collection**: Save sensor readings and anomaly detections to CSV files
-- **Map Visualization**: View collected anomalies on an interactive map
-- **History & Sharing**: Access past recordings and share collected data
+- **Real-time Sensor Monitoring**: View live data from accelerometer and device sensors
+- **Anomaly Tagging & Tracking**: Record road anomalies and physical movement spikes
+- **GPS Tracking**: Records location coordinates for data sessions
+- **Data Collection**: Save sensor readings and anomaly tags directly to CSV files
+- **Map Visualization**: Interactive map viewing current location
+- **History & Sharing**: Access past recordings and share collected CSV logs
 - **Cross-platform Support**: Runs on Android, iOS, Windows, macOS, Linux, and Web
 
 ## Project Structure
@@ -25,19 +25,13 @@ lib/
 ├── models/                   # Data models
 ├── screens/                  # UI screens
 │   ├── home_screen.dart      # Main navigation screen
-│   ├── sensing_tab.dart      # Real-time anomaly detection
-│   ├── map_tab.dart          # Map visualization of anomalies
+│   ├── sensing_tab.dart      # Real-time sensing & data collection
+│   ├── map_tab.dart          # Map visualization
 │   ├── history_tab.dart      # History of collected data
 │   └── sensor_data_screen.dart # Raw sensor data display
 ├── services/                 # Business logic services
-│   ├── sensor_service.dart   # Sensor data collection
-│   └── tflite_service.dart   # TensorFlow Lite inference
+│   └── sensor_service.dart   # Sensor data collection and CSV export
 └── widgets/                  # Reusable UI components
-
-assets/
-└── models/
-    ├── trained.tflite        # ML model for anomaly detection
-    └── model-parameters/     # Model configuration files
 ```
 
 ## Dependencies
@@ -45,10 +39,9 @@ assets/
 Key packages used in this project:
 
 - **flutter_map** & **latlong2**: Interactive maps and geospatial data
-- **sensors_plus**: Access to device sensors (accelerometer, gyroscope)
+- **sensors_plus**: Access to device sensors (accelerometer)
 - **geolocator**: GPS location services
 - **permission_handler**: Runtime permission management
-- **tflite_flutter**: TensorFlow Lite inference engine
 - **csv**: CSV file generation for data export
 - **path_provider**: File system access for data storage
 - **share_plus**: Share collected data with other apps
@@ -84,22 +77,18 @@ Key packages used in this project:
 
 The app requires the following permissions:
 - Location (for GPS tracking)
-- Sensors (accelerometer, gyroscope access)
+- Sensors (accelerometer access)
 - Storage (for saving collected data)
 
 Permissions are handled automatically at runtime using the `permission_handler` package.
 
 ## Usage
 
-1. **Home Screen**: Navigate between different tabs (Sensing, Map, History)
-2. **Sensing Tab**: Start real-time anomaly detection while moving
-3. **Map Tab**: View detected anomalies plotted on a map
-4. **History Tab**: Review and export previously collected data
-5. **Sensor Data**: Access raw sensor readings for debugging/analysis
-
-## Model Information
-
-The app includes a pre-trained TensorFlow Lite model (`trained.tflite`) located in `assets/models/`. The model processes sensor data to classify road surface conditions.
+1. **Home Screen**: Navigate between different tabs (Sensing, Map, History, Config)
+2. **Sensing Tab**: Start real-time sensor recording and monitor live acceleration waveforms
+3. **Map Tab**: View GPS position and coordinates
+4. **History Tab**: Review and export previously collected CSV files
+5. **Diagnostics & Collection**: Real-time 3-axis acceleration diagnostics with manual anomaly tagging (Normal, Pothole, Bump)
 
 ## Contributing
 
@@ -112,5 +101,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 - [Flutter](https://flutter.dev/)
-- [TensorFlow Lite](https://www.tensorflow.org/lite)
 - [OpenStreetMap](https://www.openstreetmap.org/) (via flutter_map)

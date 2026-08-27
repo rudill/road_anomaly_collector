@@ -1,12 +1,24 @@
-// ... (imports remain the same)
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:road_anomaly_collector/services/sensor_service.dart';
-import 'package:road_anomaly_collector/services/tflite_service.dart';
-import 'package:road_anomaly_collector/models/inference_result.dart';
 import 'package:road_anomaly_collector/widgets/detection_tile.dart';
 import 'package:road_anomaly_collector/widgets/stat_card.dart';
 import 'package:road_anomaly_collector/widgets/waveform_painter.dart';
+
+class SensorAnomalyEvent {
+  final String label;
+  final double magnitude;
+  final DateTime timestamp;
+  final String severity;
+
+  const SensorAnomalyEvent({
+    required this.label,
+    required this.magnitude,
+    required this.timestamp,
+    required this.severity,
+  });
+}
 
 class SensingTab extends StatefulWidget {
   final bool isRecording;
@@ -25,36 +37,49 @@ class SensingTab extends StatefulWidget {
 }
 
 class _SensingTabState extends State<SensingTab> {
-  StreamSubscription<InferenceResult>? _inferenceSubscription;
+  StreamSubscription<AccelerometerEvent>? _sensorSubscription;
 
-  /// Live inference state
-  String _currentLabel = 'Normal';
-  double _currentConfidence = 0.0;
-
-  /// Tracked detections
+  /// Live sensor state
+  double _currentZ = 0.0;
   int _anomalyCount = 0;
-  final List<InferenceResult> _recentDetections = [];
+  final List<SensorAnomalyEvent> _recentDetections = [];
   static const int _maxRecentDetections = 10;
+  DateTime _lastDetectionTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
   void initState() {
     super.initState();
-    _subscribeToInference();
+    _subscribeToSensors();
   }
 
-  void _subscribeToInference() {
-    _inferenceSubscription = TFLiteService().inferenceStream.listen((result) {
+  void _subscribeToSensors() {
+    SensorService().ensureListening();
+    _sensorSubscription = SensorService().sensorStream.listen((event) {
       if (mounted) {
         setState(() {
-          _currentLabel = result.label;
-          _currentConfidence = result.confidence;
+          _currentZ = event.z;
 
-          // Track bump detections that exceed confidence threshold
-          if (result.label == 'Bump' && result.isAboveThreshold) {
-            _anomalyCount++;
-            _recentDetections.insert(0, result);
-            if (_recentDetections.length > _maxRecentDetections) {
-              _recentDetections.removeLast();
+          // Physical threshold anomaly detection when recording
+          if (widget.isRecording) {
+            final zDeviation = (event.z - 9.8).abs();
+            final now = DateTime.now();
+            if (zDeviation > 5.0 &&
+                now.difference(_lastDetectionTime).inMilliseconds > 800) {
+              _lastDetectionTime = now;
+              _anomalyCount++;
+              final severity = zDeviation > 10.0 ? "High" : "Medium";
+              _recentDetections.insert(
+                0,
+                SensorAnomalyEvent(
+                  label: event.z > 9.8 ? "Bump" : "Pothole / Dip",
+                  magnitude: zDeviation,
+                  timestamp: now,
+                  severity: severity,
+                ),
+              );
+              if (_recentDetections.length > _maxRecentDetections) {
+                _recentDetections.removeLast();
+              }
             }
           }
         });
@@ -64,7 +89,7 @@ class _SensingTabState extends State<SensingTab> {
 
   @override
   void dispose() {
-    _inferenceSubscription?.cancel();
+    _sensorSubscription?.cancel();
     super.dispose();
   }
 
@@ -81,9 +106,8 @@ class _SensingTabState extends State<SensingTab> {
                 const SizedBox(height: 20),
                 _buildHeader(),
                 const SizedBox(height: 24),
-                _buildInferenceIndicator(),
+                _buildStatusIndicator(),
                 const SizedBox(height: 24),
-                // Pass true/false to painter based on service or prop
                 _buildLiveGraph(),
                 const SizedBox(height: 24),
                 _buildStatsGrid(),
@@ -104,8 +128,6 @@ class _SensingTabState extends State<SensingTab> {
                 } else {
                   await SensorService().startRecording();
                 }
-                // Call the parent toggle to update UI (if parent still controls state)
-                // Or force rebuild if we switch to local state.
                 widget.onToggle();
               },
               child: AnimatedContainer(
@@ -153,7 +175,7 @@ class _SensingTabState extends State<SensingTab> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "RoadTrack AI",
+              "RoadTrack",
               style: TextStyle(
                 fontSize: 34,
                 fontWeight: FontWeight.bold,
@@ -162,7 +184,7 @@ class _SensingTabState extends State<SensingTab> {
               ),
             ),
             Text(
-              "Session: #RS-2024-082",
+              "Sensor Data Collection",
               style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 14),
             ),
           ],
@@ -172,16 +194,16 @@ class _SensingTabState extends State<SensingTab> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color:
-                (TFLiteService().isInitialized
-                        ? CupertinoColors.activeGreen
-                        : CupertinoColors.systemYellow)
+                (widget.isRecording
+                        ? CupertinoColors.systemRed
+                        : CupertinoColors.activeGreen)
                     .withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color:
-                  (TFLiteService().isInitialized
-                          ? CupertinoColors.activeGreen
-                          : CupertinoColors.systemYellow)
+                  (widget.isRecording
+                          ? CupertinoColors.systemRed
+                          : CupertinoColors.activeGreen)
                       .withOpacity(0.3),
             ),
           ),
@@ -190,17 +212,17 @@ class _SensingTabState extends State<SensingTab> {
               Icon(
                 CupertinoIcons.circle_fill,
                 size: 8,
-                color: TFLiteService().isInitialized
-                    ? CupertinoColors.activeGreen
-                    : CupertinoColors.systemYellow,
+                color: widget.isRecording
+                    ? CupertinoColors.systemRed
+                    : CupertinoColors.activeGreen,
               ),
               const SizedBox(width: 6),
               Text(
-                TFLiteService().isInitialized ? "MODEL READY" : "NO MODEL",
+                widget.isRecording ? "RECORDING" : "SENSORS READY",
                 style: TextStyle(
-                  color: TFLiteService().isInitialized
-                      ? CupertinoColors.activeGreen
-                      : CupertinoColors.systemYellow,
+                  color: widget.isRecording
+                      ? CupertinoColors.systemRed
+                      : CupertinoColors.activeGreen,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
@@ -212,13 +234,11 @@ class _SensingTabState extends State<SensingTab> {
     );
   }
 
-  /// Live inference result indicator
-  Widget _buildInferenceIndicator() {
-    final isBump = _currentLabel == 'Bump' && _currentConfidence >= 0.6;
-    final indicatorColor = isBump
+  /// Live sensor collection status indicator
+  Widget _buildStatusIndicator() {
+    final indicatorColor = widget.isRecording
         ? CupertinoColors.systemRed
         : CupertinoColors.activeGreen;
-    final confidencePercent = (_currentConfidence * 100).toStringAsFixed(1);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -237,8 +257,8 @@ class _SensingTabState extends State<SensingTab> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              isBump
-                  ? CupertinoIcons.exclamationmark_triangle_fill
+              widget.isRecording
+                  ? CupertinoIcons.waveform_path_badge_plus
                   : CupertinoIcons.checkmark_shield_fill,
               color: indicatorColor,
               size: 22,
@@ -250,7 +270,7 @@ class _SensingTabState extends State<SensingTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _currentLabel.toUpperCase(),
+                  widget.isRecording ? "RECORDING ACTIVE" : "SYSTEM STANDBY",
                   style: TextStyle(
                     color: indicatorColor,
                     fontWeight: FontWeight.bold,
@@ -260,7 +280,9 @@ class _SensingTabState extends State<SensingTab> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  "Confidence: $confidencePercent%",
+                  widget.isRecording
+                      ? "Logging 50Hz sensor stream to CSV"
+                      : "Tap play button to begin collection",
                   style: const TextStyle(
                     color: CupertinoColors.systemGrey,
                     fontSize: 12,
@@ -343,17 +365,17 @@ class _SensingTabState extends State<SensingTab> {
       childAspectRatio: 1.5,
       children: [
         StatCard(
-          label: "DETECTED",
+          label: "ANOMALIES",
           value: "$_anomalyCount",
-          unit: "Anomalies",
+          unit: "Spikes",
           icon: CupertinoIcons.exclamationmark_triangle,
           color: CupertinoColors.systemRed,
         ),
         const StatCard(
-          label: "IRI INDEX",
-          value: "—",
-          unit: "m/km",
-          icon: CupertinoIcons.graph_square,
+          label: "SAMPLING",
+          value: "50",
+          unit: "Hz",
+          icon: CupertinoIcons.waveform_path,
           color: CupertinoColors.systemYellow,
         ),
         const StatCard(
@@ -364,9 +386,9 @@ class _SensingTabState extends State<SensingTab> {
           color: CupertinoColors.activeBlue,
         ),
         StatCard(
-          label: "CONFIDENCE",
-          value: (_currentConfidence * 100).toStringAsFixed(0),
-          unit: "%",
+          label: "Z-FORCE",
+          value: _currentZ.toStringAsFixed(1),
+          unit: "m/s²",
           icon: CupertinoIcons.layers_alt,
           color: CupertinoColors.systemPurple,
         ),
@@ -416,9 +438,9 @@ class _SensingTabState extends State<SensingTab> {
                 : '${ago.inMinutes}m ago';
             return DetectionTile(
               title: detection.label,
-              conf: '${(detection.confidence * 100).toStringAsFixed(0)}%',
+              conf: 'Δ ${detection.magnitude.toStringAsFixed(1)} m/s²',
               time: timeAgo,
-              severity: detection.confidence >= 0.8 ? "High" : "Medium",
+              severity: detection.severity,
             );
           }),
       ],
