@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 import 'package:road_anomaly_collector/services/sensor_service.dart';
 import 'package:road_anomaly_collector/widgets/detection_tile.dart';
 import 'package:road_anomaly_collector/widgets/stat_card.dart';
@@ -37,7 +36,7 @@ class SensingTab extends StatefulWidget {
 }
 
 class _SensingTabState extends State<SensingTab> {
-  StreamSubscription<AccelerometerEvent>? _sensorSubscription;
+  StreamSubscription<CombinedSensorReading>? _sensorSubscription;
 
   /// Live sensor state
   double _currentZ = 0.0;
@@ -57,7 +56,7 @@ class _SensingTabState extends State<SensingTab> {
     _sensorSubscription = SensorService().sensorStream.listen((event) {
       if (mounted) {
         setState(() {
-          _currentZ = event.z;
+          _currentZ = event.accelZ;
 
           // Physical threshold anomaly detection when recording
           if (widget.isRecording) {
@@ -71,7 +70,7 @@ class _SensingTabState extends State<SensingTab> {
               _recentDetections.insert(
                 0,
                 SensorAnomalyEvent(
-                  label: event.z > 9.8 ? "Bump" : "Pothole / Dip",
+                  label: event.accelZ > 9.8 ? "Bump" : "Pothole / Dip",
                   magnitude: zDeviation,
                   timestamp: now,
                   severity: severity,
@@ -281,7 +280,7 @@ class _SensingTabState extends State<SensingTab> {
                 const SizedBox(height: 2),
                 Text(
                   widget.isRecording
-                      ? "Logging 50Hz sensor stream to CSV"
+                      ? "Logging 100Hz 6-DOF sensor stream to CSV"
                       : "Tap play button to begin collection",
                   style: const TextStyle(
                     color: CupertinoColors.systemGrey,
@@ -336,7 +335,7 @@ class _SensingTabState extends State<SensingTab> {
                 ],
               ),
               Text(
-                "50Hz",
+                "100Hz",
                 style: TextStyle(
                   color: CupertinoColors.systemGrey,
                   fontSize: 12,
@@ -373,7 +372,7 @@ class _SensingTabState extends State<SensingTab> {
         ),
         const StatCard(
           label: "SAMPLING",
-          value: "50",
+          value: "100",
           unit: "Hz",
           icon: CupertinoIcons.waveform_path,
           color: CupertinoColors.systemYellow,

@@ -15,8 +15,7 @@ class _WaveformPainterState extends State<WaveformPainter>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   List<double> points = List.generate(50, (_) => 50.0);
-  // ignore: cancel_subscriptions
-  StreamSubscription? _subscription;
+  StreamSubscription<CombinedSensorReading>? _subscription;
 
   @override
   void initState() {
@@ -27,7 +26,7 @@ class _WaveformPainterState extends State<WaveformPainter>
 
     _subscription = SensorService().sensorStream.listen((event) {
       if (mounted) {
-        double plottedValue = 50 - (event.z * 5);
+        double plottedValue = 50 - (event.accelZ * 5);
         plottedValue = plottedValue.clamp(0.0, 100.0);
         points.add(plottedValue);
         points.removeAt(0);
