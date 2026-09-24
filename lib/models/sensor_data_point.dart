@@ -1,12 +1,30 @@
 class SensorDataPoint {
   final DateTime timestamp;
-  final double x;
-  final double y;
-  final double z;
+  final double accelX;
+  final double accelY;
+  final double accelZ;
+  final double gyroX;
+  final double gyroY;
+  final double gyroZ;
   final String label;
 
-  SensorDataPoint(this.timestamp, this.x, this.y, this.z, this.label);
+  SensorDataPoint({
+    required this.timestamp,
+    required this.accelX,
+    required this.accelY,
+    required this.accelZ,
+    required this.gyroX,
+    required this.gyroY,
+    required this.gyroZ,
+    required this.label,
+  });
 
-  // Helper method to easily convert this to a CSV string later
-  String toCsvRow() => '${timestamp.toIso8601String()},$x,$y,$z,$label\n';
+  // Backward compatibility getters
+  double get x => accelX;
+  double get y => accelY;
+  double get z => accelZ;
+
+  // CSV Row: Timestamp,Accel_X,Accel_Y,Accel_Z,Gyro_X,Gyro_Y,Gyro_Z,Label
+  String toCsvRow() =>
+      '${timestamp.toIso8601String()},$accelX,$accelY,$accelZ,$gyroX,$gyroY,$gyroZ,$label\n';
 }
