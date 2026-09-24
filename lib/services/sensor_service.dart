@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:road_anomaly_collector/models/sensor_data_point.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:road_anomaly_collector/services/ml_inference_service.dart';
 
 /// Unified sensor reading holding both Accelerometer and Gyroscope readings at a specific timestamp.
 class CombinedSensorReading {
@@ -42,9 +44,9 @@ class SensorService {
   final List<SensorDataPoint> _dataBuffer = [];
   StreamSubscription<AccelerometerEvent>? _accelSubscription;
   StreamSubscription<GyroscopeEvent>? _gyroSubscription;
+  StreamSubscription<Position>? _positionSubscription;
 
-  final _streamController =
-      StreamController<CombinedSensorReading>.broadcast();
+  final _streamController = StreamController<CombinedSensorReading>.broadcast();
 
   bool _isRecording = false;
   bool get isRecording => _isRecording;
@@ -56,10 +58,37 @@ class SensorService {
   double _latestGyroY = 0.0;
   double _latestGyroZ = 0.0;
 
+  // Cache latest GPS location
+  Position? _latestPosition;
+  Position? get latestPosition => _latestPosition;
+
   Stream<CombinedSensorReading> get sensorStream => _streamController.stream;
 
   void ensureListening() {
     _startSensorListeners();
+    _startLocationListener();
+  }
+
+  void _startLocationListener() {
+    if (_positionSubscription != null) return;
+    try {
+      _positionSubscription =
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 2,
+            ),
+          ).listen(
+            (pos) {
+              _latestPosition = pos;
+            },
+            onError: (e) {
+              debugPrint('[SensorService] Location stream error: $e');
+            },
+          );
+    } catch (e) {
+      debugPrint('[SensorService] Could not start location stream: $e');
+    }
   }
 
   // Allow UI to update the current road surface label
@@ -111,35 +140,21 @@ class SensorService {
 
   void _startSensorListeners() {
     // 1. Gyroscope stream at 100Hz
-    _gyroSubscription ??= gyroscopeEventStream(
-      samplingPeriod: samplingInterval,
-    ).listen((event) {
-      _latestGyroX = event.x;
-      _latestGyroY = event.y;
-      _latestGyroZ = event.z;
-    });
+    _gyroSubscription ??= gyroscopeEventStream(samplingPeriod: samplingInterval)
+        .listen((event) {
+          _latestGyroX = event.x;
+          _latestGyroY = event.y;
+          _latestGyroZ = event.z;
+        });
 
     // 2. Accelerometer stream at 100Hz (synchronizes with latest gyro values)
-    _accelSubscription ??= accelerometerEventStream(
-      samplingPeriod: samplingInterval,
-    ).listen((event) {
-      final now = DateTime.now();
+    _accelSubscription ??=
+        accelerometerEventStream(samplingPeriod: samplingInterval).listen((
+          event,
+        ) {
+          final now = DateTime.now();
 
-      final reading = CombinedSensorReading(
-        timestamp: now,
-        accelX: event.x,
-        accelY: event.y,
-        accelZ: event.z,
-        gyroX: _latestGyroX,
-        gyroY: _latestGyroY,
-        gyroZ: _latestGyroZ,
-      );
-
-      _streamController.add(reading);
-
-      if (_isRecording) {
-        _dataBuffer.add(
-          SensorDataPoint(
+          final reading = CombinedSensorReading(
             timestamp: now,
             accelX: event.x,
             accelY: event.y,
@@ -147,11 +162,36 @@ class SensorService {
             gyroX: _latestGyroX,
             gyroY: _latestGyroY,
             gyroZ: _latestGyroZ,
-            label: _currentLabel,
-          ),
-        );
-      }
-    });
+          );
+
+          _streamController.add(reading);
+
+          // Dispatch to ML Worker Isolate for continuous real-time edge inference
+          MlInferenceService().feedSensorReading(
+            reading,
+            latitude: _latestPosition?.latitude,
+            longitude: _latestPosition?.longitude,
+            speedKmh:
+                (_latestPosition?.speed != null && _latestPosition!.speed >= 0)
+                ? _latestPosition!.speed * 3.6
+                : null,
+          );
+
+          if (_isRecording) {
+            _dataBuffer.add(
+              SensorDataPoint(
+                timestamp: now,
+                accelX: event.x,
+                accelY: event.y,
+                accelZ: event.z,
+                gyroX: _latestGyroX,
+                gyroY: _latestGyroY,
+                gyroZ: _latestGyroZ,
+                label: _currentLabel,
+              ),
+            );
+          }
+        });
   }
 
   void dispose() {
@@ -159,6 +199,8 @@ class SensorService {
     _accelSubscription = null;
     _gyroSubscription?.cancel();
     _gyroSubscription = null;
+    _positionSubscription?.cancel();
+    _positionSubscription = null;
     _streamController.close();
   }
 }

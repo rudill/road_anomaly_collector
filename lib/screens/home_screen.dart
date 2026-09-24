@@ -3,6 +3,7 @@ import 'package:road_anomaly_collector/screens/sensing_tab.dart';
 import 'package:road_anomaly_collector/screens/map_tab.dart';
 import 'package:road_anomaly_collector/screens/history_tab.dart';
 import 'package:road_anomaly_collector/manual_data_collection/manual_data_collection_screen.dart';
+import 'package:road_anomaly_collector/widgets/nericell_calibration_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -97,6 +98,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (context) =>
                                     const ManualDataCollectionScreen(),
                               ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _buildSettingItem(
+                          context,
+                          title: "Nericell Mount Calibration",
+                          subtitle: "Align phone coordinate frame with vehicle axes",
+                          icon: CupertinoIcons.compass,
+                          color: CupertinoColors.activeGreen,
+                          onTap: () {
+                            showCupertinoModalPopup(
+                              context: context,
+                              builder: (context) =>
+                                  const NericellCalibrationDialog(),
                             );
                           },
                         ),

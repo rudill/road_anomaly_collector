@@ -1,0 +1,49 @@
+{
+  "model_name": "RoadAnomaly1DCNN",
+  "description": "1D-CNN road anomaly classifier quantized to INT8 for mobile edge deployment",
+  "input": {
+    "tensor_name": "imu_window_input",
+    "shape": [
+      1,
+      50,
+      3
+    ],
+    "channels": [
+      "Accel_X",
+      "Accel_Y",
+      "Accel_Z"
+    ],
+    "unit": "m/s^2 (including gravity, Nericell reoriented)",
+    "sampling_rate_hz": 100,
+    "window_duration_seconds": 0.5,
+    "stride_seconds": 0.1
+  },
+  "output": {
+    "shape": [
+      1,
+      3
+    ],
+    "classes": [
+      "Normal",
+      "Pothole",
+      "Bump"
+    ],
+    "confidence_threshold": 0.65
+  },
+  "quantization": {
+    "technique": "Post-Training Quantization (PTQ)",
+    "calibration_samples": 300,
+    "quantized_layers": [
+      "conv1d_1",
+      "conv1d_2",
+      "dense_1",
+      "output_probabilities"
+    ]
+  },
+  "artifacts": {
+    "recommended_mobile_model": "road_anomaly_int8.tflite",
+    "size_kb": 14.2,
+    "fp32_baseline": "road_anomaly_fp32.tflite",
+    "dynamic_int8": "road_anomaly_int8_dynamic.tflite"
+  }
+}
