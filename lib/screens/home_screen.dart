@@ -242,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             } else {
                               statusText = "Offline / Unreachable • Tap to retry";
                               statusColor = CupertinoColors.systemRed;
-                              statusIcon = CupertinoIcons.exclamationmark_circle_solid;
+                              statusIcon = CupertinoIcons.exclamationmark_circle_fill;
                             }
 
                             return _buildSettingItem(
