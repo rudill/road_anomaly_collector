@@ -1,3 +1,4 @@
+import 'package:road_anomaly_collector/services/backend_sync_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
@@ -132,6 +133,9 @@ class MlInferenceService {
     }
 
     _anomalyController.add(event);
+
+    // Queue in resilient offline outbox for backend sync
+    BackendSyncService().queueAnomaly(event);
   }
 
   /// Ingest real-time 100Hz sensor reading and dispatch to background isolate.

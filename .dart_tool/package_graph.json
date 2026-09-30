@@ -7,16 +7,20 @@
       "name": "road_anomaly_collector",
       "version": "1.0.0+1",
       "dependencies": [
+        "archive",
+        "crypto",
         "csv",
         "cupertino_icons",
         "flutter",
         "flutter_map",
         "geolocator",
+        "http",
         "latlong2",
         "path_provider",
         "permission_handler",
         "sensors_plus",
-        "share_plus"
+        "share_plus",
+        "uuid"
       ],
       "devDependencies": [
         "flutter_lints",
@@ -46,6 +50,39 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "http",
+      "version": "1.6.0",
+      "dependencies": [
+        "async",
+        "http_parser",
+        "meta",
+        "web"
+      ]
+    },
+    {
+      "name": "uuid",
+      "version": "4.6.0",
+      "dependencies": [
+        "crypto",
+        "fixnum"
+      ]
+    },
+    {
+      "name": "crypto",
+      "version": "3.0.7",
+      "dependencies": [
+        "typed_data"
+      ]
+    },
+    {
+      "name": "archive",
+      "version": "4.3.0",
+      "dependencies": [
+        "path",
+        "posix"
       ]
     },
     {
@@ -252,6 +289,50 @@
       ]
     },
     {
+      "name": "web",
+      "version": "1.1.1",
+      "dependencies": []
+    },
+    {
+      "name": "http_parser",
+      "version": "4.1.2",
+      "dependencies": [
+        "collection",
+        "source_span",
+        "string_scanner",
+        "typed_data"
+      ]
+    },
+    {
+      "name": "async",
+      "version": "2.13.1",
+      "dependencies": [
+        "collection",
+        "meta"
+      ]
+    },
+    {
+      "name": "fixnum",
+      "version": "1.1.1",
+      "dependencies": []
+    },
+    {
+      "name": "typed_data",
+      "version": "1.4.0",
+      "dependencies": [
+        "collection"
+      ]
+    },
+    {
+      "name": "posix",
+      "version": "6.5.2",
+      "dependencies": [
+        "ffi",
+        "meta",
+        "path"
+      ]
+    },
+    {
       "name": "win32",
       "version": "6.4.0",
       "dependencies": [
@@ -259,11 +340,6 @@
         "ffi_leak_tracker",
         "meta"
       ]
-    },
-    {
-      "name": "web",
-      "version": "1.1.1",
-      "dependencies": []
     },
     {
       "name": "ffi",
@@ -355,30 +431,12 @@
       ]
     },
     {
-      "name": "uuid",
-      "version": "4.6.0",
-      "dependencies": [
-        "crypto",
-        "fixnum"
-      ]
-    },
-    {
       "name": "proj4dart",
       "version": "3.0.0",
       "dependencies": [
         "meta",
         "mgrs_dart",
         "wkt_parser"
-      ]
-    },
-    {
-      "name": "http",
-      "version": "1.6.0",
-      "dependencies": [
-        "async",
-        "http_parser",
-        "meta",
-        "web"
       ]
     },
     {
@@ -393,14 +451,6 @@
       "name": "dart_earcut",
       "version": "1.2.0",
       "dependencies": []
-    },
-    {
-      "name": "async",
-      "version": "2.13.1",
-      "dependencies": [
-        "collection",
-        "meta"
-      ]
     },
     {
       "name": "path_provider_windows",
@@ -645,18 +695,6 @@
       ]
     },
     {
-      "name": "fixnum",
-      "version": "1.1.1",
-      "dependencies": []
-    },
-    {
-      "name": "crypto",
-      "version": "3.0.7",
-      "dependencies": [
-        "typed_data"
-      ]
-    },
-    {
       "name": "wkt_parser",
       "version": "2.0.0",
       "dependencies": []
@@ -666,16 +704,6 @@
       "version": "3.0.0",
       "dependencies": [
         "unicode"
-      ]
-    },
-    {
-      "name": "http_parser",
-      "version": "4.1.2",
-      "dependencies": [
-        "collection",
-        "source_span",
-        "string_scanner",
-        "typed_data"
       ]
     },
     {
@@ -788,13 +816,6 @@
       "dependencies": []
     },
     {
-      "name": "typed_data",
-      "version": "1.4.0",
-      "dependencies": [
-        "collection"
-      ]
-    },
-    {
       "name": "unicode",
       "version": "1.1.9",
       "dependencies": [
@@ -873,14 +894,6 @@
       "dependencies": []
     },
     {
-      "name": "archive",
-      "version": "4.2.0",
-      "dependencies": [
-        "path",
-        "posix"
-      ]
-    },
-    {
       "name": "record_use",
       "version": "1.1.1",
       "dependencies": [
@@ -895,15 +908,6 @@
       "dependencies": [
         "collection",
         "meta"
-      ]
-    },
-    {
-      "name": "posix",
-      "version": "6.5.2",
-      "dependencies": [
-        "ffi",
-        "meta",
-        "path"
       ]
     }
   ],

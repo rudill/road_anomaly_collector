@@ -4,7 +4,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:road_anomaly_collector/models/anomaly_event.dart';
+import 'package:road_anomaly_collector/models/backend_models.dart';
 import 'package:road_anomaly_collector/services/ml_inference_service.dart';
+import 'package:road_anomaly_collector/services/backend_sync_service.dart';
 
 class MapTab extends StatefulWidget {
   const MapTab({super.key});
@@ -20,6 +22,9 @@ class _MapTabState extends State<MapTab> {
   bool _isMapReady = false;
   String _locationError = '';
 
+  List<VerifiedHazard> _verifiedHazards = [];
+  bool _isLoadingHazards = false;
+
   StreamSubscription<AnomalyDetectionEvent>? _anomalySub;
 
   @override
@@ -27,12 +32,32 @@ class _MapTabState extends State<MapTab> {
     super.initState();
     _determinePosition();
     _subscribeToAnomalies();
+    _fetchVerifiedHazards();
   }
 
   void _subscribeToAnomalies() {
     _anomalySub = MlInferenceService().anomalyStream.listen((_) {
       if (mounted) setState(() {});
     });
+  }
+
+  Future<void> _fetchVerifiedHazards() async {
+    if (_isLoadingHazards) return;
+    setState(() => _isLoadingHazards = true);
+
+    try {
+      final hazards = await BackendSyncService().fetchVerifiedHazards();
+      if (mounted) {
+        setState(() {
+          _verifiedHazards = hazards;
+          _isLoadingHazards = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingHazards = false);
+      }
+    }
   }
 
   @override
@@ -167,6 +192,7 @@ class _MapTabState extends State<MapTab> {
                 ],
               ),
               const SizedBox(height: 20),
+              _buildDetailRow('Source', 'On-Device Edge ML (Recent)'),
               _buildDetailRow('Impact Severity', anomaly.severity),
               _buildDetailRow('Peak Z-Force Deviation', '${anomaly.magnitude.toStringAsFixed(2)} m/s²'),
               if (anomaly.speedKmh != null)
@@ -186,14 +212,115 @@ class _MapTabState extends State<MapTab> {
     );
   }
 
+  void _showVerifiedHazardDetails(VerifiedHazard hazard) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Color(0xFF161618),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.activeBlue,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.checkmark_shield_fill,
+                          color: CupertinoColors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            hazard.primaryClass.replaceAll('_', ' ').toUpperCase(),
+                            style: const TextStyle(
+                              color: CupertinoColors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Status: ${hazard.status}',
+                            style: const TextStyle(
+                              color: CupertinoColors.activeGreen,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.activeBlue.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: CupertinoColors.activeBlue.withOpacity(0.4)),
+                    ),
+                    child: Text(
+                      '${hazard.detectionCount}x Verified',
+                      style: const TextStyle(
+                        color: CupertinoColors.activeBlue,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildDetailRow('Corridor', hazard.roadName),
+              _buildDetailRow('DBSCAN Cluster', 'Merged from ${hazard.detectionCount} vehicle passes'),
+              _buildDetailRow('Avg ML Confidence', '${(hazard.avgConfidence * 100).toStringAsFixed(1)}%'),
+              _buildDetailRow('Max Peak Impact', '${hazard.maxPeakAz.toStringAsFixed(2)} m/s²'),
+              _buildDetailRow('Centroid Coordinates', '${hazard.centroidLat.toStringAsFixed(5)}, ${hazard.centroidLng.toStringAsFixed(5)}'),
+              _buildDetailRow('H3 Spatial Cell', hazard.h3Index),
+              _buildDetailRow('Last Verified', hazard.lastDetectedAt.toLocal().toString().split('.').first),
+              const SizedBox(height: 20),
+              CupertinoButton.filled(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 13)),
-          Text(value, style: const TextStyle(color: CupertinoColors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: CupertinoColors.white, fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+          ),
         ],
       ),
     );
@@ -215,23 +342,42 @@ class _MapTabState extends State<MapTab> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildCoordinatesOverlay(),
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        color: CupertinoColors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(16),
-                        child: const Icon(
-                          CupertinoIcons.location_fill,
-                          color: CupertinoColors.white,
-                        ),
-                        onPressed: () {
-                          if (_currentPosition != null) {
-                            if (_isMapReady) {
-                              _mapController.move(_currentPosition!, 15);
-                            }
-                          } else {
-                            _determinePosition();
-                          }
-                        },
+                      Row(
+                        children: [
+                          CupertinoButton(
+                            padding: EdgeInsets.zero,
+                            color: CupertinoColors.black.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(16),
+                            onPressed: _fetchVerifiedHazards,
+                            child: _isLoadingHazards
+                                ? const CupertinoActivityIndicator(radius: 9)
+                                : const Icon(
+                                    CupertinoIcons.cloud_download,
+                                    color: CupertinoColors.activeBlue,
+                                    size: 20,
+                                  ),
+                          ),
+                          const SizedBox(width: 8),
+                          CupertinoButton(
+                            padding: EdgeInsets.zero,
+                            color: CupertinoColors.black.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(16),
+                            child: const Icon(
+                              CupertinoIcons.location_fill,
+                              color: CupertinoColors.white,
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              if (_currentPosition != null) {
+                                if (_isMapReady) {
+                                  _mapController.move(_currentPosition!, 15);
+                                }
+                              } else {
+                                _determinePosition();
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -263,7 +409,7 @@ class _MapTabState extends State<MapTab> {
           const Icon(CupertinoIcons.map_pin_ellipse, size: 14, color: CupertinoColors.activeBlue),
           const SizedBox(width: 8),
           Text(
-            "ML Anomaly Pins: $potholes Potholes • $bumps Bumps",
+            "Live: ${potholes}P • ${bumps}B  |  Cloud Verified: ${_verifiedHazards.length}",
             style: const TextStyle(
               color: CupertinoColors.white,
               fontSize: 12,
@@ -296,12 +442,12 @@ class _MapTabState extends State<MapTab> {
       );
     }
 
-    final center = _currentPosition ?? const LatLng(51.509364, -0.128928);
+    final center = _currentPosition ?? const LatLng(6.9271, 79.8612); // Default Colombo
     final detections = MlInferenceService().recentDetections;
 
     final markers = <Marker>[];
 
-    // Current position marker
+    // 1. Current position marker
     if (_currentPosition != null) {
       markers.add(
         Marker(
@@ -317,7 +463,66 @@ class _MapTabState extends State<MapTab> {
       );
     }
 
-    // Road anomaly pins
+    // 2. Cloud Tier 2 Verified Hazard Centroids
+    for (final hazard in _verifiedHazards) {
+      markers.add(
+        Marker(
+          point: LatLng(hazard.centroidLat, hazard.centroidLng),
+          width: 50,
+          height: 50,
+          child: GestureDetector(
+            onTap: () => _showVerifiedHazardDetails(hazard),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E3A8A),
+                shape: BoxShape.circle,
+                border: Border.all(color: CupertinoColors.activeBlue, width: 2.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: CupertinoColors.activeBlue.withOpacity(0.6),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    hazard.isPothole
+                        ? CupertinoIcons.exclamationmark_shield_fill
+                        : CupertinoIcons.shield_fill,
+                    color: CupertinoColors.white,
+                    size: 22,
+                  ),
+                  Positioned(
+                    top: 1,
+                    right: 1,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.systemRed,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${hazard.detectionCount}',
+                        style: const TextStyle(
+                          color: CupertinoColors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 3. Local Edge Anomaly Pins (Recent)
     for (final anomaly in detections) {
       if (anomaly.latitude != null && anomaly.longitude != null) {
         markers.add(
@@ -363,7 +568,7 @@ class _MapTabState extends State<MapTab> {
       mapController: _mapController,
       options: MapOptions(
         initialCenter: center,
-        initialZoom: 15.0,
+        initialZoom: 14.0,
         onMapReady: () {
           _isMapReady = true;
         },
