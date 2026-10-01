@@ -37,13 +37,14 @@ class BackendSyncService {
   factory BackendSyncService() => _instance;
   BackendSyncService._internal();
 
+  static const String defaultTunnelUrl = 'https://onyx-mountain-e6bff16a.tunnl.gg';
   static const String defaultEmulatorUrl = 'http://10.0.2.2:8000';
-  static const String defaultLocalhostUrl = 'http://localhost:8000';
+  static const String defaultLocalhostUrl = 'http://localhost:8005';
 
   final _uuid = const Uuid();
   final _dpService = DifferentialPrivacyService();
 
-  String _baseUrl = defaultEmulatorUrl;
+  String _baseUrl = defaultTunnelUrl;
   String get baseUrl => _baseUrl;
 
   String _deviceIdHash = '';
@@ -54,8 +55,10 @@ class BackendSyncService {
 
   final ValueNotifier<int> pendingCountNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> isSyncingNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<bool?> isBackendConnectedNotifier = ValueNotifier<bool?>(null);
-  final ValueNotifier<String> baseUrlNotifier = ValueNotifier<String>(defaultEmulatorUrl);
+  final ValueNotifier<bool?> isBackendConnectedNotifier = ValueNotifier<bool?>(
+    null,
+  );
+  final ValueNotifier<String> baseUrlNotifier = ValueNotifier<String>(defaultTunnelUrl);
 
   /// Initialize persistent storage and load pending outbox
   Future<void> initialize() async {
@@ -84,7 +87,8 @@ class BackendSyncService {
         }
       } else {
         // Auto-select localhost on Windows/macOS/Linux/Web, 10.0.2.2 on Android
-        if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+        if (!kIsWeb &&
+            (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
           _baseUrl = defaultLocalhostUrl;
           baseUrlNotifier.value = _baseUrl;
         }
@@ -98,15 +102,19 @@ class BackendSyncService {
           final List<dynamic> list = jsonDecode(content);
           _outbox.clear();
           for (final item in list) {
-            _outbox.add(SyncRecordPayload.fromJson(item as Map<String, dynamic>));
+            _outbox.add(
+              SyncRecordPayload.fromJson(item as Map<String, dynamic>),
+            );
           }
           pendingCountNotifier.value = _outbox.length;
         }
       }
 
       _isInitialized = true;
-      debugPrint('[BackendSyncService] Initialized. Device: ${_deviceIdHash.length >= 8 ? _deviceIdHash.substring(0, 8) : _deviceIdHash}... Pending: ${_outbox.length}');
-      
+      debugPrint(
+        '[BackendSyncService] Initialized. Device: ${_deviceIdHash.length >= 8 ? _deviceIdHash.substring(0, 8) : _deviceIdHash}... Pending: ${_outbox.length}',
+      );
+
       // Initial background health check
       checkConnection();
     } catch (e) {
@@ -142,7 +150,9 @@ class BackendSyncService {
   }) async {
     if (!event.isAnomaly) return;
     if (event.latitude == null || event.longitude == null) {
-      debugPrint('[BackendSyncService] Skipping anomaly without GPS fix: ${event.id}');
+      debugPrint(
+        '[BackendSyncService] Skipping anomaly without GPS fix: ${event.id}',
+      );
       return;
     }
 
@@ -178,7 +188,9 @@ class BackendSyncService {
     pendingCountNotifier.value = _outbox.length;
     await _saveOutboxToDisk();
 
-    debugPrint('[BackendSyncService] Queued ${record.classLabel} (${record.uuid.substring(0, 8)}). Outbox size: ${_outbox.length}');
+    debugPrint(
+      '[BackendSyncService] Queued ${record.classLabel} (${record.uuid.substring(0, 8)}). Outbox size: ${_outbox.length}',
+    );
   }
 
   /// Sync all pending records in outbox to backend with optional GZIP compression.
@@ -189,11 +201,19 @@ class BackendSyncService {
     await initialize();
 
     if (_outbox.isEmpty) {
-      return SyncResult(isSuccess: true, syncedCount: 0, message: 'Outbox is empty');
+      return SyncResult(
+        isSuccess: true,
+        syncedCount: 0,
+        message: 'Outbox is empty',
+      );
     }
 
     if (isSyncingNotifier.value) {
-      return SyncResult(isSuccess: false, syncedCount: 0, message: 'Sync already in progress');
+      return SyncResult(
+        isSuccess: false,
+        syncedCount: 0,
+        message: 'Sync already in progress',
+      );
     }
 
     isSyncingNotifier.value = true;
@@ -215,24 +235,28 @@ class BackendSyncService {
         final rawBytes = utf8.encode(jsonString);
         final compressedBytes = GZipEncoder().encode(rawBytes);
 
-        response = await http.post(
-          endpoint,
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Encoding': 'gzip',
-            'X-Device-App-Version': '1.0.0',
-          },
-          body: compressedBytes,
-        ).timeout(const Duration(seconds: 12));
+        response = await http
+            .post(
+              endpoint,
+              headers: {
+                'Content-Type': 'application/json',
+                'Content-Encoding': 'gzip',
+                'X-Device-App-Version': '1.0.0',
+              },
+              body: compressedBytes,
+            )
+            .timeout(const Duration(seconds: 12));
       } else {
-        response = await http.post(
-          endpoint,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Device-App-Version': '1.0.0',
-          },
-          body: jsonString,
-        ).timeout(const Duration(seconds: 12));
+        response = await http
+            .post(
+              endpoint,
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Device-App-Version': '1.0.0',
+              },
+              body: jsonString,
+            )
+            .timeout(const Duration(seconds: 12));
       }
 
       if (response.statusCode == 200) {
@@ -255,7 +279,9 @@ class BackendSyncService {
         isBackendConnectedNotifier.value = true;
         isSyncingNotifier.value = false;
 
-        debugPrint('[BackendSyncService] Sync SUCCESS! Ingested ${syncResponse.ingestedCount} records.');
+        debugPrint(
+          '[BackendSyncService] Sync SUCCESS! Ingested ${syncResponse.ingestedCount} records.',
+        );
         return SyncResult(
           isSuccess: true,
           syncedCount: batchRecords.length,
@@ -264,7 +290,9 @@ class BackendSyncService {
       } else {
         isBackendConnectedNotifier.value = false;
         isSyncingNotifier.value = false;
-        debugPrint('[BackendSyncService] Sync HTTP ${response.statusCode}: ${response.body}');
+        debugPrint(
+          '[BackendSyncService] Sync HTTP ${response.statusCode}: ${response.body}',
+        );
         return SyncResult(
           isSuccess: false,
           syncedCount: 0,
@@ -292,12 +320,16 @@ class BackendSyncService {
 
     try {
       final queryParams = <String, String>{};
-      if (status != null && status.isNotEmpty) queryParams['status'] = status;
-      if (hazardClass != null && hazardClass.isNotEmpty) queryParams['class'] = hazardClass;
+      if (status != null && status.isNotEmpty) {
+        queryParams['status'] = status;
+      }
+      if (hazardClass != null && hazardClass.isNotEmpty) {
+        queryParams['class'] = hazardClass;
+      }
 
-      final uri = Uri.parse('$_baseUrl/api/v1/hazards/verified').replace(
-        queryParameters: queryParams.isNotEmpty ? queryParams : null,
-      );
+      final uri = Uri.parse(
+        '$_baseUrl/api/v1/hazards/verified',
+      ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
       final response = await http.get(uri).timeout(const Duration(seconds: 8));
 
@@ -305,9 +337,13 @@ class BackendSyncService {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final hazardsList = (data['hazards'] as List<dynamic>?) ?? [];
         isBackendConnectedNotifier.value = true;
-        return hazardsList.map((h) => VerifiedHazard.fromJson(h as Map<String, dynamic>)).toList();
+        return hazardsList
+            .map((h) => VerifiedHazard.fromJson(h as Map<String, dynamic>))
+            .toList();
       } else {
-        debugPrint('[BackendSyncService] Hazards query HTTP ${response.statusCode}');
+        debugPrint(
+          '[BackendSyncService] Hazards query HTTP ${response.statusCode}',
+        );
         return [];
       }
     } catch (e) {
@@ -320,14 +356,22 @@ class BackendSyncService {
   /// Quick connectivity check against backend.
   Future<bool> checkConnection() async {
     try {
-      final uri = Uri.parse('$_baseUrl/docs');
-      final response = await http.get(uri).timeout(const Duration(seconds: 3));
+      final uri = Uri.parse('$_baseUrl/health');
+      final response = await http.get(uri).timeout(const Duration(seconds: 4));
       final connected = response.statusCode == 200;
       isBackendConnectedNotifier.value = connected;
       return connected;
     } catch (_) {
-      isBackendConnectedNotifier.value = false;
-      return false;
+      try {
+        final uri2 = Uri.parse('$_baseUrl/api/v1/hazards/verified');
+        final response2 = await http.get(uri2).timeout(const Duration(seconds: 4));
+        final connected2 = response2.statusCode == 200;
+        isBackendConnectedNotifier.value = connected2;
+        return connected2;
+      } catch (_) {
+        isBackendConnectedNotifier.value = false;
+        return false;
+      }
     }
   }
 

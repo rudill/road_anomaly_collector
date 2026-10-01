@@ -43,13 +43,21 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 12),
               CupertinoTextField(
                 controller: textController,
-                placeholder: "http://10.0.2.2:8000",
+                placeholder: "https://onyx-mountain-e6bff16a.tunnl.gg",
                 style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
               ),
               const SizedBox(height: 14),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    color: CupertinoColors.activeBlue.withOpacity(0.2),
+                    child: const Text("Cloud Tunnel", style: TextStyle(fontSize: 11, color: CupertinoColors.activeBlue, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      textController.text = "https://onyx-mountain-e6bff16a.tunnl.gg";
+                    },
+                  ),
                   CupertinoButton(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     color: CupertinoColors.white.withOpacity(0.1),
