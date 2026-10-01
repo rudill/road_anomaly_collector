@@ -41,6 +41,13 @@ class BackendSyncService {
   static const String defaultEmulatorUrl = 'http://10.0.2.2:8000';
   static const String defaultLocalhostUrl = 'http://localhost:8005';
 
+  static const Map<String, String> defaultTunnelBypassHeaders = {
+    'tunnl-skip-browser-warning': '1',
+    'ngrok-skip-browser-warning': '1',
+    'bypass-tunnel-reminder': '1',
+    'User-Agent': 'RoadAnomalyCollectorApp/1.0',
+  };
+
   final _uuid = const Uuid();
   final _dpService = DifferentialPrivacyService();
 
@@ -242,6 +249,7 @@ class BackendSyncService {
                 'Content-Type': 'application/json',
                 'Content-Encoding': 'gzip',
                 'X-Device-App-Version': '1.0.0',
+                ...defaultTunnelBypassHeaders,
               },
               body: compressedBytes,
             )
@@ -253,6 +261,7 @@ class BackendSyncService {
               headers: {
                 'Content-Type': 'application/json',
                 'X-Device-App-Version': '1.0.0',
+                ...defaultTunnelBypassHeaders,
               },
               body: jsonString,
             )
@@ -331,7 +340,7 @@ class BackendSyncService {
         '$_baseUrl/api/v1/hazards/verified',
       ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
-      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+      final response = await http.get(uri, headers: defaultTunnelBypassHeaders).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -357,14 +366,14 @@ class BackendSyncService {
   Future<bool> checkConnection() async {
     try {
       final uri = Uri.parse('$_baseUrl/health');
-      final response = await http.get(uri).timeout(const Duration(seconds: 4));
+      final response = await http.get(uri, headers: defaultTunnelBypassHeaders).timeout(const Duration(seconds: 4));
       final connected = response.statusCode == 200;
       isBackendConnectedNotifier.value = connected;
       return connected;
     } catch (_) {
       try {
         final uri2 = Uri.parse('$_baseUrl/api/v1/hazards/verified');
-        final response2 = await http.get(uri2).timeout(const Duration(seconds: 4));
+        final response2 = await http.get(uri2, headers: defaultTunnelBypassHeaders).timeout(const Duration(seconds: 4));
         final connected2 = response2.statusCode == 200;
         isBackendConnectedNotifier.value = connected2;
         return connected2;
